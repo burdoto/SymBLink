@@ -42,10 +42,6 @@ namespace SymBLink {
             Console.WriteLine("[SymBLink:TS4] Ts4FileService Ready!");
         }
 
-        private void Debug(object sender, FileSystemEventArgs args) {
-            Console.WriteLine($"[scope={args.ChangeType},path={args.FullPath}]");
-        }
-
         public void Dispose() {
             _watcher.Dispose();
             

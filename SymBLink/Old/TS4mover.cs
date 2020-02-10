@@ -4,7 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Windows.Forms;
 
-namespace SymBLink {
+namespace SymBLink.Old {
     public class Ts4Mover {
         private static readonly DirectoryInfo TmpDir = new DirectoryInfo(
             Path.GetTempPath() + Path.DirectorySeparatorChar + "org.comroid.symblink.ts4mover");
@@ -36,8 +36,10 @@ namespace SymBLink {
                            e.Name.Substring(0, e.Name.LastIndexOf('.'));
 
             if (!(target.Extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
-                  || target.Extension.Equals(".rar", StringComparison.OrdinalIgnoreCase))) {
-                Console.WriteLine($@"[{e.Name}] File is not a zip file, aborted.");
+                  || target.Extension.Equals(".rar", StringComparison.OrdinalIgnoreCase)
+                  || target.Extension.Equals(".package", StringComparison.OrdinalIgnoreCase)
+                  || target.Extension.Equals(".ts4script", StringComparison.OrdinalIgnoreCase))) {
+                Console.WriteLine($@"[{e.Name}] File is not an archive or mod file, aborted.");
                 return;
             }
 

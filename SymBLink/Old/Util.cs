@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 
-namespace SymBLink {
+namespace SymBLink.Old {
     public static class LoggerUtil {
     }
 

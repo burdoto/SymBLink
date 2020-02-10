@@ -60,10 +60,9 @@ namespace SymBLink {
             try {
                 Console.Write($@"[SymBLink:TS4:{modId}] Checking file {targetFile.FullName}... ");
 
-                if (ExtWhitelist.Any(ext =>
+                if (!ExtWhitelist.Any(ext =>
                         targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))
-                    || ExtBlacklist.All(ext =>
-                        !targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))) {
+                    && ExtBlacklist.Any(ext => targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))) {
                     Console.Write("INVALID\n");
 
                     _app.Activity.LoadLevel = ActivityCompanion.Load.Idle;

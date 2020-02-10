@@ -1,83 +1,88 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Windows.Forms;
 
 namespace SymBLink {
     public class Ts4Mover {
-        private static readonly DirectoryInfo TmpDir = new DirectoryInfo(Path.GetTempPath() + Path.DirectorySeparatorChar + "org.comroid.symblink.ts4mover");
+        private static readonly DirectoryInfo TmpDir = new DirectoryInfo(
+            Path.GetTempPath() + Path.DirectorySeparatorChar + "org.comroid.symblink.ts4mover");
+
         private readonly DirectoryInfo _modsDir;
         private readonly FileSystemWatcher _watcher;
 
         internal Ts4Mover(string downloadsDir, string modsDir) {
+            Application.ApplicationExit += (sender, args) => TmpDir.Delete(true);
+
             _modsDir = new DirectoryInfo(modsDir);
             _watcher = new FileSystemWatcher(downloadsDir);
 
             _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName;
 
-            _watcher.Created += OnFileCreated;
-            _watcher.Changed += (sender, args) => Console.WriteLine($@"Changed {args.FullPath}");
-            _watcher.Deleted += (sender, args) => Console.WriteLine($@"Deleted {args.FullPath}");
-            _watcher.Renamed += (sender, args) => Console.WriteLine($@"Renamed {args.FullPath}");
+            _watcher.Created += HandleFile;
+            _watcher.Renamed += HandleFile;
 
             _watcher.EnableRaisingEvents = true;
 
             Console.WriteLine("Ts4Mover Ready!");
         }
 
-        private void OnFileCreated(object sender, FileSystemEventArgs e) {
-            Console.WriteLine($@"{e.Name} Processing file {e.FullPath}...");
-            
+        private void HandleFile(object sender, FileSystemEventArgs e) {
             var target = new FileInfo(e.FullPath);
-            var itTmpDir = TmpDir.FullName + Path.DirectorySeparatorChar + e.Name;
+            Console.WriteLine(
+                $@"Processing file {e.FullPath}; ext={target.Extension},sco={e.ChangeType}...");
+            var itTmpDir = TmpDir.FullName + Path.DirectorySeparatorChar +
+                           e.Name.Substring(0, e.Name.LastIndexOf('.'));
 
-            if (target.Extension.Equals("zip", StringComparison.OrdinalIgnoreCase)
-                || target.Extension.Equals("rar", StringComparison.OrdinalIgnoreCase)) {
-                Console.WriteLine($@"{e.Name} File is not a zip file, aborted.");
-            }
-
-            if (IsFileLocked(target)) {
-                Console.WriteLine($@"{e.Name} File is currently in use! Skipping for now.");
+            if (!(target.Extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+                  || target.Extension.Equals(".rar", StringComparison.OrdinalIgnoreCase))) {
+                Console.WriteLine($@"[{e.Name}] File is not a zip file, aborted.");
                 return;
             }
 
-            Console.WriteLine($@"{e.Name} Extracting to {itTmpDir}...");
-            
+            if (IsFileLocked(target)) {
+                Console.WriteLine($@"[{e.Name}]File is currently in use! Skipping for now.");
+                return;
+            }
+
+            Console.WriteLine($@"[{e.Name}] Extracting to {itTmpDir}...");
+
             ZipFile.ExtractToDirectory(target.FullName, itTmpDir);
             var unpacked = new DirectoryInfo(itTmpDir);
 
             if (!unpacked.Exists) {
-                Console.WriteLine($@"{e.Name} Unpacked Directory does not exist. Skipping.");
+                Console.WriteLine($@"[{e.Name}] Unpacked Directory does not exist. Skipping.");
                 return;
             }
 
             var modAssets = IterateAssets(unpacked);
-            
-            Console.WriteLine($@"{e.Name} Scanned Files; {modAssets.Count} assets found");
-            
-            foreach (FileInfo modAsset in modAssets) {
-                modAsset.MoveTo(itTmpDir);
+
+            Console.WriteLine($@"[{e.Name}] Scanned Files; {modAssets.Count} assets found");
+
+            if (modAssets.Count > 0) {
+                foreach (var modAsset in modAssets)
+                    if (modAsset.Directory?.Equals(unpacked) ?? false)
+                        Console.WriteLine(
+                            $@"[{e.Name}] Moving {modAsset.Name} to working dir; method={MoveHelper.Move(modAsset, unpacked)}");
+
+                Console.WriteLine(
+                    $@"[{e.Name}] Moving {unpacked.FullName} to {_modsDir.FullName}; method={MoveHelper.Move(unpacked, _modsDir)}");
             }
-            
-            unpacked.MoveTo(_modsDir.FullName);
-            
-            Console.WriteLine($@"{e.Name} Finished.");
+
+            Console.WriteLine($@"[{e.Name}] Finished.");
         }
 
         private List<FileInfo> IterateAssets(DirectoryInfo directoryInfo) {
-            List<FileInfo> yields = new List<FileInfo>();
+            var yields = new List<FileInfo>();
 
-            foreach (var asset in directoryInfo.EnumerateFiles()) {
-                if (asset.Extension.Equals("ts4script", StringComparison.OrdinalIgnoreCase)
-                    || asset.Extension.Equals("package", StringComparison.OrdinalIgnoreCase)) {
+            foreach (var asset in directoryInfo.EnumerateFiles())
+                if (asset.Extension.Equals(".ts4script", StringComparison.OrdinalIgnoreCase)
+                    || asset.Extension.Equals(".package", StringComparison.OrdinalIgnoreCase))
                     yields.Add(asset);
-                }
-            }
-            
-            foreach (var assetDir in directoryInfo.EnumerateDirectories()) {
+
+            foreach (var assetDir in directoryInfo.EnumerateDirectories())
                 yields.AddRange(IterateAssets(assetDir));
-            }
 
             return yields;
         }

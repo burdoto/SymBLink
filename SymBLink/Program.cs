@@ -8,14 +8,31 @@ using Newtonsoft.Json;
 
 namespace SymBLink {
     public static class Program {
-        public static readonly DirectoryInfo DataDir = new DirectoryInfo(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
-            Path.DirectorySeparatorChar + "org.comroid.symblink");
+        public const string AppId = "org.comroid.symblink";
+
+        public static readonly DirectoryInfo DataDir;
+        public static readonly DirectoryInfo TmpDir;
+
+        static Program() {
+            Console.WriteLine("[SymBLink] Application PreInitialization");
+            DataDir = new DirectoryInfo(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
+                Path.DirectorySeparatorChar + AppId);
+            TmpDir = new DirectoryInfo(
+                Path.GetTempPath() + Path.DirectorySeparatorChar + AppId);
+
+            Application.ApplicationExit += (sender, args) => {
+                App.Instance.Dispose();
+                TmpDir.Delete(true);
+            };
+        }
 
         [STAThread]
         public static void Main() {
-            App.Instance.Load();
+            Console.WriteLine("[SymBLink] Starting up...");
+            App.Instance.ReInitialize(true);
 
+            Console.WriteLine("[SymBLink] Running Application...");
             Application.Run(App.Instance);
         }
     }
@@ -30,6 +47,9 @@ namespace SymBLink {
         public readonly Settings Settings;
         public readonly NotifyIcon TrayIcon;
         public readonly ContextMenu TrayMenu;
+
+        private Ts4FileService _fds;
+        private bool _loaded;
 
         private App() {
             if (!Program.DataDir.Exists)
@@ -47,16 +67,16 @@ namespace SymBLink {
             _components.Add(TrayMenu, "trayMenu");
         }
 
-        public void Load() {
-            Activity.LoadLevel = ActivityCompanion.Load.High;
-
+        private void Load() {
+            Console.WriteLine("[SymBLink] Loading UI...");
+            
             TrayIcon.Text = ToString();
             TrayIcon.Visible = true;
 
             var configure = new MenuItem("Configure...", (sender, args) => Settings.Configurator());
             configure.DefaultItem = true;
             TrayIcon.DoubleClick += (sender, args) => configure.PerformClick();
-            
+
             MenuItem[] menuItems = {
                 configure,
                 new MenuItem("Exit", (sender, args) => Application.Exit())
@@ -72,10 +92,25 @@ namespace SymBLink {
             TrayMenu.MenuItems.AddRange(menuItems);
 
             TrayIcon.ContextMenu = TrayMenu;
+
+            _loaded = true;
+            
+            Console.WriteLine("[SymBLink] UI Initialized!");
         }
 
-        public void ReInitialize() {
-            throw new NotImplementedException();
+        public void ReInitialize(bool reload) {
+            Console.WriteLine($"[SymBLink] Reinitializing. Reloading? {!_loaded || reload}");
+            
+            Activity.LoadLevel = ActivityCompanion.Load.High;
+
+            if (!_loaded || reload) Load();
+
+            _fds?.Dispose();
+            _fds = new Ts4FileService(this);
+
+            Activity.LoadLevel = ActivityCompanion.Load.Idle;
+            
+            Console.WriteLine("[SymBLink] Reinitialization Complete.");
         }
 
         public override string ToString() {
@@ -83,8 +118,10 @@ namespace SymBLink {
         }
 
         protected override void Dispose(bool disposing) {
-            Settings.Dispose();
+            Console.WriteLine("[SymBLink] App is being disposed!");
             
+            Settings.Dispose();
+
             _components.Dispose();
         }
     }

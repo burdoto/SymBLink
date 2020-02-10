@@ -10,7 +10,6 @@ using System.Windows.Media.Imaging;
 using Newtonsoft.Json;
 using Button = System.Windows.Controls.Button;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
-using Label = System.Windows.Controls.Label;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace SymBLink {
@@ -21,20 +20,20 @@ namespace SymBLink {
             High
         }
 
-        private static readonly Dictionary<Load, Icon> iconCache;
+        private static readonly Dictionary<Load, Icon> IconCache;
         private Load _loadLevel = Load.Idle;
 
         static ActivityCompanion() {
-            iconCache = new Dictionary<Load, Icon>();
-            iconCache.Add(Load.Idle, App.VanityIcon);
-            iconCache.Add(Load.Low, new Icon("Resources/icon-yellow.ico"));
-            iconCache.Add(Load.High, new Icon("Resources/icon-red.ico"));
+            IconCache = new Dictionary<Load, Icon>();
+            IconCache.Add(Load.Idle, App.VanityIcon);
+            IconCache.Add(Load.Low, new Icon("Resources/icon-yellow.ico"));
+            IconCache.Add(Load.High, new Icon("Resources/icon-red.ico"));
         }
 
         public Load LoadLevel {
             set {
                 Icon buf;
-                iconCache.TryGetValue(value, out buf);
+                IconCache.TryGetValue(value, out buf);
                 App.Instance.TrayIcon.Icon = buf;
 
                 _loadLevel = value;
@@ -56,6 +55,12 @@ namespace SymBLink {
 
         [JsonProperty] public string SimsDir { get; set; } = TryFind(AutoFindProperty.SimsDir);
 
+        public bool Valid =>
+            DownloadDir != null
+            && Directory.Exists(DownloadDir)
+            && SimsDir != null
+            && Directory.Exists(SimsDir);
+
         public void Dispose() {
             var data = JsonConvert.SerializeObject(this, Formatting.Indented);
 
@@ -70,19 +75,23 @@ namespace SymBLink {
             if (_configurator != null) {
                 if (_configurator.Visibility == Visibility.Visible) {
                     _configurator.Visibility = Visibility.Collapsed;
+                    Console.WriteLine("[SymBLink:Conf] Collapsed Configurator");
                 }
                 else {
                     _configurator.Visibility = Visibility.Visible;
                     _configurator.Topmost = true;
+                    Console.WriteLine("[SymBLink:Conf] Opened existing Configurator");
                 }
 
                 return;
             }
 
+            Console.WriteLine("[SymBLink:Conf] New Configurator is required");
             _configurator = new ConfiguratorForm(this);
             _configurator.Closed += (sender, args) => _configurator = null;
             _configurator.Visibility = Visibility.Visible;
 
+            Console.WriteLine("[SymBLink:Conf] Activating new Configurator...");
             _configurator.Activate();
         }
 
@@ -104,7 +113,7 @@ namespace SymBLink {
 
                     return eaDir + Path.DirectorySeparatorChar +
                            new DirectoryInfo(eaDir).EnumerateDirectories("*Sims 4*")
-                               .First()?.Name ?? "The Sims 4";
+                               .First()?.Name;
                 });
         }
 
@@ -194,7 +203,8 @@ namespace SymBLink {
                 mainPanel.Children.Add(simsDirPanel);
 
                 var simsDirLabel = new TextBlock {
-                    Text = "Sims Data Directory - Usually: <Documents>\\Electronic Arts\\The Sims 4",
+                    Text =
+                        "Sims Data Directory - Usually: <Documents>\\Electronic Arts\\The Sims 4",
                     IsEnabled = false,
                     Visibility = Visibility.Visible,
                     Width = TextWidth + BtnWidth,
@@ -246,8 +256,8 @@ namespace SymBLink {
                 Content = mainPanel;
             }
 
-            private string DownloadDir { get; set; } = null;
-            private string SimsDir { get; set; } = null;
+            private string DownloadDir { get; set; }
+            private string SimsDir { get; set; }
 
             public void Dispose() {
                 _settings._configurator = null;
@@ -255,22 +265,95 @@ namespace SymBLink {
             }
 
             private void ApplyChanges() {
-                if (DownloadDir != null) 
+                if (DownloadDir != null)
                     _settings.DownloadDir = DownloadDir;
                 if (SimsDir != null)
                     _settings.SimsDir = SimsDir;
 
-                App.Instance.ReInitialize();
+                App.Instance.ReInitialize(false);
             }
 
             private string SelectDir(string current) {
                 var browserDialog = new FolderBrowserDialog();
                 browserDialog.SelectedPath = current;
 
-                var result = browserDialog.ShowDialog();
+                browserDialog.ShowDialog();
 
                 return browserDialog.SelectedPath;
             }
         }
+    }
+    public static class MoveHelper {
+        public static Method Move(FileSystemInfo source, FileSystemInfo target) {
+            if (Path.GetPathRoot(source.FullName).Equals(Path.GetPathRoot(target.FullName),
+                StringComparison.OrdinalIgnoreCase)) {
+                if (source is FileInfo fil)
+                    fil.MoveTo(target.FullName);
+                else if (source is DirectoryInfo dir)
+                    dir.MoveTo(target.FullName);
+
+                return Method.Move;
+            }
+
+            // different volumes
+            if (source is FileInfo) {
+                File.Copy(source.FullName, target.FullName, true);
+                File.Delete(source.FullName);
+            }
+            else if (source is DirectoryInfo) {
+                DirectoryCopy(source.FullName, target.FullName, true);
+                Directory.Delete(source.FullName, true);
+            }
+            else {
+                throw new OperationCanceledException("source is of unknown type!");
+            }
+
+            return Method.CopyDestroy;
+        }
+
+        // as shared on https://docs.microsoft.com/en-us/dotnet/standard/io/how-to-copy-directories
+        private static void DirectoryCopy(string sourceDirName, string destDirName, bool copySubDirs)
+        {
+            // Get the subdirectories for the specified directory.
+            DirectoryInfo dir = new DirectoryInfo(sourceDirName);
+
+            if (!dir.Exists)
+            {
+                throw new DirectoryNotFoundException(
+                    "Source directory does not exist or could not be found: "
+                    + sourceDirName);
+            }
+
+            DirectoryInfo[] dirs = dir.GetDirectories();
+            // If the destination directory doesn't exist, create it.
+            if (!Directory.Exists(destDirName))
+            {
+                Directory.CreateDirectory(destDirName);
+            }
+        
+            // Get the files in the directory and copy them to the new location.
+            FileInfo[] files = dir.GetFiles();
+            foreach (FileInfo file in files)
+            {
+                string temppath = Path.Combine(destDirName, file.Name);
+                file.CopyTo(temppath, false);
+            }
+
+            // If copying subdirectories, copy them and their contents to new location.
+            if (copySubDirs)
+            {
+                foreach (DirectoryInfo subdir in dirs)
+                {
+                    string temppath = Path.Combine(destDirName, subdir.Name);
+                    // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                    DirectoryCopy(subdir.FullName, temppath, copySubDirs);
+                }
+            }
+        }
+    }
+
+    public enum Method {
+        Move,
+        CopyDestroy
     }
 }

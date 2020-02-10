@@ -23,8 +23,8 @@ namespace SymBLink {
         private App() {
             WhenDebug(() => Console.WriteLine("Debug Mode ON!"));
 
-            _window.Initialized += null; // todo needs serialization
-            _window.Loaded += null; // todo move ui initialization here
+            //_window.Initialized += null; // todo needs serialization
+            //_window.Loaded += null; // todo move ui initialization here
 
             _components = new Container();
             _window = new Window();
@@ -148,7 +148,12 @@ namespace SymBLink {
         [STAThread]
         public static void Main() {
             Console.WriteLine("STARTING...");
-            
+
+            var ts4Mover = new Ts4Mover(
+                "D:\\Downloads\\sems4cc",
+                "D:\\Dokumente\\Electronic Arts\\The Sims 4\\Mods"
+                );
+
             Application.Run(Instance);
             Instance._components?.Dispose();
             

@@ -185,7 +185,7 @@ namespace SymBLink {
     }
     public static class MoveHelper {
         public static Method Move(FileSystemInfo source, FileSystemInfo target) {
-            Console.WriteLine("[SymBLink:Move] Moving Files:\n\n\t-\t{0}\n\t-\t{1}", source.FullName, target.FullName);
+            Console.WriteLine($"[SymBLink:Move] Moving Files:\n\n\t-\t{source.FullName}\n\t-\t{target.FullName}");
             
             if (Path.GetPathRoot(source.FullName).Equals(Path.GetPathRoot(target.FullName),
                 StringComparison.OrdinalIgnoreCase)) {

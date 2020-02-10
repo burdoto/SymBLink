@@ -74,11 +74,17 @@ namespace SymBLink {
             TrayIcon.ContextMenu = TrayMenu;
         }
 
+        public void ReInitialize() {
+            throw new NotImplementedException();
+        }
+
         public override string ToString() {
             return $@"SymBLink v{Application.ProductVersion}";
         }
 
         protected override void Dispose(bool disposing) {
+            Settings.Dispose();
+            
             _components.Dispose();
         }
     }

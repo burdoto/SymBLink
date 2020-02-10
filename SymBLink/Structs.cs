@@ -57,7 +57,9 @@ namespace SymBLink {
         [JsonProperty] public string SimsDir { get; set; } = TryFind(AutoFindProperty.SimsDir);
 
         public void Dispose() {
-            // todo
+            var data = JsonConvert.SerializeObject(this, Formatting.Indented);
+
+            System.IO.File.WriteAllText(File.FullName, data);
         }
 
         private static T TryFind<T>(GatherableProperty<T> property) {
@@ -127,6 +129,8 @@ namespace SymBLink {
                 Title = App.Instance + " - Configuration";
                 Icon = BitmapFrame.Create(new Uri("Resources/icon-green.png", UriKind.Relative));
                 SizeToContent = SizeToContent.WidthAndHeight;
+                Left = Screen.PrimaryScreen.Bounds.Width * 0.6;
+                Top = Screen.PrimaryScreen.Bounds.Height * 0.7;
 
 
                 var mainPanel = new DockPanel {
@@ -255,6 +259,8 @@ namespace SymBLink {
                     _settings.DownloadDir = DownloadDir;
                 if (SimsDir != null)
                     _settings.SimsDir = SimsDir;
+
+                App.Instance.ReInitialize();
             }
 
             private string SelectDir(string current) {

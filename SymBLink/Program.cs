@@ -14,7 +14,7 @@ namespace SymBLink {
         public static readonly DirectoryInfo TmpDir;
 
         static Program() {
-            Console.WriteLine("[SymBLink] Application PreInitialization");
+            Console.WriteLine("[SymBLink] Program PreInitialization");
             DataDir = new DirectoryInfo(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
                 Path.DirectorySeparatorChar + AppId);
@@ -25,6 +25,7 @@ namespace SymBLink {
                 App.Instance.Dispose();
                 TmpDir.Delete(true);
             };
+            Console.WriteLine("[SymBLink] Program PreInitialization complete");
         }
 
         [STAThread]
@@ -38,8 +39,15 @@ namespace SymBLink {
     }
 
     public class App : ApplicationContext {
-        public static readonly App Instance = new App();
-        public static readonly Icon VanityIcon = new Icon("Resources/icon-green.ico");
+        public static readonly App Instance;
+        public static readonly Icon VanityIcon;
+
+        static App() {
+            Console.WriteLine("[SymBLink] App PreInitialization");
+            Instance = new App();
+            VanityIcon = new Icon("Resources/icon-green.ico");
+            Console.WriteLine("[SymBLink] App PreInitialization complete");
+        }
 
         private readonly Container _components = new Container();
         public readonly ActivityCompanion Activity;
@@ -52,6 +60,7 @@ namespace SymBLink {
         private bool _loaded;
 
         private App() {
+            Console.WriteLine("[SymBLink] Initializing App...");
             if (!Program.DataDir.Exists)
                 Program.DataDir.Create();
             if (!Settings.File.Exists)
@@ -65,6 +74,7 @@ namespace SymBLink {
 
             _components.Add(TrayIcon, "trayIcon");
             _components.Add(TrayMenu, "trayMenu");
+            Console.WriteLine("[SymBLink] Initializing App complete!");
         }
 
         private void Load() {

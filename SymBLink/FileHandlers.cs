@@ -29,21 +29,32 @@ namespace SymBLink {
                 throw new InvalidDataException("Invalid Settings!");
             }
 
-            _watcher = new FileSystemWatcher(_app.Settings.DownloadDir, "") {
+            _watcher = new FileSystemWatcher(_app.Settings.DownloadDir) {
                 IncludeSubdirectories = true,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
             };
 
             _watcher.Created += HandleFile;
             _watcher.Renamed += HandleFile;
+
+            _watcher.EnableRaisingEvents = true;
             
             Console.WriteLine("[SymBLink:TS4] Ts4FileService Ready!");
         }
 
+        private void Debug(object sender, FileSystemEventArgs args) {
+            Console.WriteLine($"[scope={args.ChangeType},path={args.FullPath}]");
+        }
+
         public void Dispose() {
+            _watcher.Dispose();
+            
+            Console.WriteLine("[SymBLink:TS4] Ts4FileService was disposed");
         }
 
         private void HandleFile(object sender, FileSystemEventArgs e) {
+            Console.WriteLine($"[SymBLink:TS4] Trying to handle FileEvent; [scope={e.ChangeType},path={e.FullPath}]");
+            
             _app.Activity.LoadLevel = ActivityCompanion.Load.Low;
 
             var modId = e.Name.Substring(0, e.Name.LastIndexOf('.'));

@@ -20,12 +20,12 @@ namespace SymBLink {
             High
         }
 
-        private static readonly Dictionary<Load, Icon> IconCache;
+        public static readonly Dictionary<Load, Icon> IconCache;
         private Load _loadLevel = Load.Idle;
 
         static ActivityCompanion() {
             IconCache = new Dictionary<Load, Icon>();
-            IconCache.Add(Load.Idle, App.VanityIcon);
+            IconCache.Add(Load.Idle, new Icon("Resources/icon-green.ico"));
             IconCache.Add(Load.Low, new Icon("Resources/icon-yellow.ico"));
             IconCache.Add(Load.High, new Icon("Resources/icon-red.ico"));
         }
@@ -254,6 +254,8 @@ namespace SymBLink {
 
 
                 Content = mainPanel;
+                
+                Console.WriteLine("[SymBLink:Conf] Configurator initialized!");
             }
 
             private string DownloadDir { get; set; }

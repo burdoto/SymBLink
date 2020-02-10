@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -185,32 +186,11 @@ namespace SymBLink {
     }
     public static class MoveHelper {
         public static Method Move(FileSystemInfo source, FileSystemInfo target) {
-            Console.WriteLine($"[SymBLink:Move] Moving Files:\n\n\t-\t{source.FullName}\n\t-\t{target.FullName}");
-            
-            if (Path.GetPathRoot(source.FullName).Equals(Path.GetPathRoot(target.FullName),
-                StringComparison.OrdinalIgnoreCase)) {
-                if (source is FileInfo fil)
-                    fil.MoveTo(target.FullName);
-                else if (source is DirectoryInfo dir)
-                    dir.MoveTo(target.FullName);
+            //todo Rework this bullshit
+        }
 
-                return Method.Move;
-            }
-
-            // different volumes
-            if (source is FileInfo) {
-                File.Copy(source.FullName, target.FullName, true);
-                File.Delete(source.FullName);
-            }
-            else if (source is DirectoryInfo) {
-                DirectoryCopy(source.FullName, target.FullName, true);
-                Directory.Delete(source.FullName, true);
-            }
-            else {
-                throw new OperationCanceledException("source is of unknown type!");
-            }
-
-            return Method.CopyDestroy;
+        private static bool MatchRoots(string path1, string path2) {
+            return Path.GetPathRoot(path1)?.Equals(Path.GetPathRoot(path2)) ?? false;
         }
 
         // as shared on https://docs.microsoft.com/en-us/dotnet/standard/io/how-to-copy-directories

@@ -55,7 +55,7 @@ namespace SymBLink {
                 $"[SymBLink:TS4] Trying to handle FileEvent; [scope={e.ChangeType},path={e.FullPath}]");
 
             var modId = e.Name.Substring(0, e.Name.LastIndexOf('.'));
-            DirectoryInfo modTmpDir = TmpDir.CreateSubdirectory(modId);
+            var modTmpDir = TmpDir.CreateSubdirectory(modId);
             DirectoryInfo deflateDir = null, composeDir = null, modsDir = null;
 
             try {
@@ -153,7 +153,7 @@ namespace SymBLink {
             catch (Exception any) {
                 Console.WriteLine(
                     $"[SymBLink:TS4:{modId}] Could not extract mod: {any.GetType()} - {any.Message}\nException Information:\n{e}");
-                
+
                 if (modsDir?.Exists ?? false)
                     modsDir.Delete(true);
             }
@@ -207,10 +207,10 @@ namespace SymBLink {
 
         public static void Move(FileSystemInfo source, FileSystemInfo target) {
             Debug.Write("\n" +
-                          $"[SymBLink:Move] Moving {source.GetType()} to {target.GetType()}:\n" +
-                          $"\t-\t{source.FullName}\n" +
-                          $"\t-\t{target.FullName}\n" +
-                          "...");
+                        $"[SymBLink:Move] Moving {source.GetType()} to {target.GetType()}:\n" +
+                        $"\t-\t{source.FullName}\n" +
+                        $"\t-\t{target.FullName}\n" +
+                        "...");
 
             var mount = MountRelation(source, target);
 
@@ -257,7 +257,8 @@ namespace SymBLink {
         }
 
         private static string DirName(FileSystemInfo fsi, string sourceName = null) {
-            return (fsi as FileInfo)?.DirectoryName ?? fsi.FullName + (sourceName == null ? "" : Path.DirectorySeparatorChar + sourceName);
+            return (fsi as FileInfo)?.DirectoryName ?? fsi.FullName +
+                   (sourceName == null ? "" : Path.DirectorySeparatorChar + sourceName);
         }
 
         public static bool Is(FsType type, FileSystemInfo path) {

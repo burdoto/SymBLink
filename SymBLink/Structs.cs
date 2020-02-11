@@ -254,7 +254,7 @@ namespace SymBLink {
 
 
                 Content = mainPanel;
-                
+
                 Console.WriteLine("[SymBLink:Conf] Configurator initialized!");
             }
 

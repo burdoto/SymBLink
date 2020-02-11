@@ -3,13 +3,8 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
-using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using Newtonsoft.Json;
-using Application = System.Windows.Forms.Application;
-using Color = System.Drawing.Color;
 
 namespace SymBLink {
     public static class Program {
@@ -47,13 +42,6 @@ namespace SymBLink {
         public static readonly App Instance;
         public static readonly Icon VanityIcon;
 
-        static App() {
-            Console.WriteLine("[SymBLink] App PreInitialization");
-            Instance = new App();
-            VanityIcon = new Icon("Resources/icon-green.ico");
-            Console.WriteLine("[SymBLink] App PreInitialization complete");
-        }
-
         private readonly Container _components = new Container();
         public readonly ActivityCompanion Activity;
 
@@ -63,6 +51,13 @@ namespace SymBLink {
 
         private Ts4FileService _fds;
         private bool _loaded;
+
+        static App() {
+            Console.WriteLine("[SymBLink] App PreInitialization");
+            Instance = new App();
+            VanityIcon = new Icon("Resources/icon-green.ico");
+            Console.WriteLine("[SymBLink] App PreInitialization complete");
+        }
 
         private App() {
             Console.WriteLine("[SymBLink] Initializing App...");
@@ -84,7 +79,7 @@ namespace SymBLink {
 
         private void Load() {
             Console.WriteLine("[SymBLink] Loading UI...");
-            
+
             TrayIcon.Text = ToString();
             TrayIcon.Visible = true;
 
@@ -96,14 +91,15 @@ namespace SymBLink {
                 configure,
                 new MenuItem("Why does the Icon look so bad...?", new[] {
                     new MenuItem {
-                        Text = "Because Windows requires me to replace the white with your TaskBar color.",
+                        Text =
+                            "Because Windows requires me to replace the white with your TaskBar color.",
                         Enabled = false
                     },
                     new MenuItem {
-                    Text = "This is retarded and absolutely overkill for such an Application.",
-                    Enabled = false
+                        Text = "This is retarded and absolutely overkill for such an Application.",
+                        Enabled = false
                     }
-                }), 
+                }),
                 new MenuItem("Exit", (sender, args) => Application.Exit())
             };
 
@@ -119,13 +115,13 @@ namespace SymBLink {
             TrayIcon.ContextMenu = TrayMenu;
 
             _loaded = true;
-            
+
             Console.WriteLine("[SymBLink] UI Initialized!");
         }
 
         public void ReInitialize(bool reload) {
             Console.WriteLine($"[SymBLink] Reinitializing. Reloading? {!_loaded || reload}");
-            
+
             Activity.LoadLevel = ActivityCompanion.Load.High;
 
             if (!_loaded || reload) Load();
@@ -134,7 +130,7 @@ namespace SymBLink {
             _fds = new Ts4FileService(this);
 
             Activity.LoadLevel = ActivityCompanion.Load.Idle;
-            
+
             Console.WriteLine("[SymBLink] Reinitialization Complete.");
         }
 
@@ -144,7 +140,7 @@ namespace SymBLink {
 
         protected override void Dispose(bool disposing) {
             Console.WriteLine("[SymBLink] App is being disposed!");
-            
+
             Settings.Dispose();
 
             _components.Dispose();

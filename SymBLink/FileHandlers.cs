@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -11,6 +11,7 @@ namespace SymBLink {
         public static readonly DirectoryInfo TmpDir;
 
         private readonly App _app;
+
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
         private readonly FileSystemWatcher _watcher;
         public readonly string[] ExtBlacklist = {".crdownload"};
@@ -39,19 +40,20 @@ namespace SymBLink {
             _watcher.Renamed += HandleFile;
 
             _watcher.EnableRaisingEvents = true;
-            
+
             Console.WriteLine("[SymBLink:TS4] Ts4FileService Ready!");
         }
 
         public void Dispose() {
             _watcher.Dispose();
-            
+
             Console.WriteLine("[SymBLink:TS4] Ts4FileService was disposed");
         }
 
         private void HandleFile(object sender, FileSystemEventArgs e) {
-            Console.WriteLine($"[SymBLink:TS4] Trying to handle FileEvent; [scope={e.ChangeType},path={e.FullPath}]");
-            
+            Console.WriteLine(
+                $"[SymBLink:TS4] Trying to handle FileEvent; [scope={e.ChangeType},path={e.FullPath}]");
+
             _app.Activity.LoadLevel = ActivityCompanion.Load.Low;
 
             var modId = e.Name.Substring(0, e.Name.LastIndexOf('.'));
@@ -63,7 +65,8 @@ namespace SymBLink {
 
                 if (!ExtWhitelist.Any(ext =>
                         targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))
-                    && ExtBlacklist.Any(ext => targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))) {
+                    && ExtBlacklist.Any(ext =>
+                        targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))) {
                     Console.Write("INVALID\n");
 
                     _app.Activity.LoadLevel = ActivityCompanion.Load.Idle;
@@ -138,11 +141,11 @@ namespace SymBLink {
                 if (!modsDir.Exists)
                     modsDir.Create();
 
-                var moveMethod = MoveHelper.Move(composeDir, modsDir);
+                MoveHelper.Move(composeDir, modsDir);
 
                 composeDir.Delete(true);
 
-                Console.Write($"OK; used method {moveMethod}\n");
+                Console.Write("OK!\n");
             }
             catch (Exception any) {
                 Console.Write($"FAIL: {any.GetType()} - {any.Message}\n");
@@ -184,58 +187,91 @@ namespace SymBLink {
             return false;
         }
     }
+
     public static class MoveHelper {
-        public static Method Move(FileSystemInfo source, FileSystemInfo target) {
-            //todo Rework this bullshit
+        public enum FSType {
+            Dir,
+            File
         }
 
-        private static bool MatchRoots(string path1, string path2) {
-            return Path.GetPathRoot(path1)?.Equals(Path.GetPathRoot(path2)) ?? false;
+        public static void Move(FileSystemInfo source, FileSystemInfo target) {
+            Debug.WriteLine($"[SymBLink:Move] Moving {source.GetType()} to {target.GetType()}:\n" +
+                            $"\t-\t{source.FullName}\n" +
+                            $"\t-\t{target.FullName}");
+
+            var mount = MountRelation(source, target);
+
+            if (Is(FSType.Dir, source)) // source is dir
+                MoveDir(mount, source as DirectoryInfo, target);
+            else // source is file
+                MoveFile(mount, source as FileInfo, target);
+        }
+
+        private static void MoveFile(Mount mount, FileInfo source, FileSystemInfo target) {
+            source.MoveTo(target.FullName);
+        }
+
+        private static void MoveDir(Mount mount, DirectoryInfo source, FileSystemInfo target) {
+            var destDirName = DirName(target);
+
+            switch (mount) {
+                case Mount.Same:
+                    source.MoveTo(destDirName);
+                    break;
+                case Mount.Different:
+                    foreach (var file in source.GetFiles()) {
+                        var tempPath = Path.Combine(destDirName, file.Name);
+                        MoveFile(mount, file, GetFSI(tempPath));
+                    }
+
+                    foreach (var sub in source.GetDirectories()) {
+                        var tempPath = Path.Combine(destDirName, sub.Name);
+                        MoveDir(mount, sub, GetFSI(tempPath));
+                    }
+
+                    source.Delete(true);
+
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mount), mount, null);
+            }
+        }
+
+        private static FileSystemInfo GetFSI(string path) {
+            return Directory.Exists(path) || path.EndsWith(Path.DirectorySeparatorChar.ToString())
+                ? (FileSystemInfo) new DirectoryInfo(path)
+                : new FileInfo(path);
+        }
+
+        private static string DirName(FileSystemInfo fsi) {
+            return (fsi as FileInfo)?.DirectoryName ?? fsi.FullName;
+        }
+
+        public static bool Is(FSType type, FileSystemInfo path) {
+            switch (type) {
+                case FSType.Dir:
+                    return path is DirectoryInfo;
+                case FSType.File:
+                    return path is FileInfo;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(type), type, null);
+            }
+        }
+
+        private static Mount MountRelation(FileSystemInfo path1, FileSystemInfo path2) {
+            return Path.GetPathRoot(path1.FullName).Equals(Path.GetPathRoot(path2.FullName))
+                ? Mount.Same
+                : Mount.Different;
         }
 
         // as shared on https://docs.microsoft.com/en-us/dotnet/standard/io/how-to-copy-directories
-        private static void DirectoryCopy(string sourceDirName, string destDirName, bool copySubDirs)
-        {
-            // Get the subdirectories for the specified directory.
-            DirectoryInfo dir = new DirectoryInfo(sourceDirName);
-
-            if (!dir.Exists)
-            {
-                throw new DirectoryNotFoundException(
-                    "Source directory does not exist or could not be found: "
-                    + sourceDirName);
-            }
-
-            DirectoryInfo[] dirs = dir.GetDirectories();
-            // If the destination directory doesn't exist, create it.
-            if (!Directory.Exists(destDirName))
-            {
-                Directory.CreateDirectory(destDirName);
-            }
-        
-            // Get the files in the directory and copy them to the new location.
-            FileInfo[] files = dir.GetFiles();
-            foreach (FileInfo file in files)
-            {
-                string temppath = Path.Combine(destDirName, file.Name);
-                file.CopyTo(temppath, false);
-            }
-
-            // If copying subdirectories, copy them and their contents to new location.
-            if (copySubDirs)
-            {
-                foreach (DirectoryInfo subdir in dirs)
-                {
-                    string temppath = Path.Combine(destDirName, subdir.Name);
-                    // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-                    DirectoryCopy(subdir.FullName, temppath, copySubDirs);
-                }
-            }
+        private static void DirectoryCopy(string sourceDirName, string destDirName,
+            bool copySubDirs) {
         }
-    }
 
-    public enum Method {
-        Move,
-        CopyDestroy
+        private enum Mount {
+            Same,
+            Different
+        }
     }
 }

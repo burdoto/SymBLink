@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -54,105 +53,116 @@ namespace SymBLink {
             Console.WriteLine(
                 $"[SymBLink:TS4] Trying to handle FileEvent; [scope={e.ChangeType},path={e.FullPath}]");
 
-            _app.Activity.LoadLevel = ActivityCompanion.Load.Low;
-
             var modId = e.Name.Substring(0, e.Name.LastIndexOf('.'));
-            var targetFile = new FileInfo(e.FullPath);
+            DirectoryInfo modTmpDir = TmpDir.CreateSubdirectory(modId);
             DirectoryInfo deflateDir = null, composeDir = null, modsDir = null;
 
             try {
-                Console.Write($@"[SymBLink:TS4:{modId}] Checking file {targetFile.FullName}... ");
+                _app.Activity.LoadLevel = ActivityCompanion.Load.Low;
+                var targetFile = new FileInfo(e.FullPath);
 
-                if (!ExtWhitelist.Any(ext =>
-                        targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))
-                    && ExtBlacklist.Any(ext =>
-                        targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))) {
-                    Console.Write("INVALID\n");
+                try {
+                    Console.Write(
+                        $@"[SymBLink:TS4:{modId}] Checking file {targetFile.FullName}... ");
 
-                    _app.Activity.LoadLevel = ActivityCompanion.Load.Idle;
-                    return;
+                    if (!ExtWhitelist.Any(ext =>
+                            targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))
+                        && ExtBlacklist.Any(ext =>
+                            targetFile.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase))) {
+                        Console.Write("INVALID\n");
+
+                        _app.Activity.LoadLevel = ActivityCompanion.Load.Idle;
+                        return;
+                    }
+
+                    Console.Write("OK!\n");
+                }
+                catch {
+                    Console.Write("FAIL\n");
+                    throw;
                 }
 
-                Console.Write("OK!\n");
-            }
-            catch (Exception any) {
-                Console.Write($"FAIL: {any.GetType()} - {any.Message}\n");
-            }
+                try {
+                    Console.Write($@"[SymBLink:TS4:{modId}] Preparing Paths... ");
+                    deflateDir = modTmpDir.CreateSubdirectory("deflate");
+                    composeDir = modTmpDir.CreateSubdirectory("compose");
+                    modsDir = new DirectoryInfo(_app.Settings.SimsDir + Sep + "Mods" + Sep + modId);
+                    Console.Write("OK!\n");
+                }
+                catch {
+                    Console.Write("FAIL\n");
+                    throw;
+                }
 
-            try {
-                Console.Write($@"[SymBLink:TS4:{modId}] Preparing Paths... ");
-                deflateDir = TmpDir.CreateSubdirectory(modId + Sep + "deflate");
-                composeDir = TmpDir.CreateSubdirectory(modId + Sep + "compose");
-                modsDir = new DirectoryInfo(_app.Settings.SimsDir + Sep + "Mods" + Sep + modId);
-                Console.Write("OK!\n");
-            }
-            catch (Exception any) {
-                Console.Write($"FAIL: {any.GetType()} - {any.Message}\n");
-            }
+                var assets = new List<FileInfo>();
 
-            // ReSharper disable once ExpressionIsAlwaysNull
-            if ((deflateDir == null) | (composeDir == null) | (modsDir == null)) {
-                _app.Activity.LoadLevel = ActivityCompanion.Load.High;
-                throw new NullReferenceException(
-                    $"\nUnexpected null reference; stack: [deflateDir={deflateDir},composeDir={composeDir},modsDir={modsDir}]");
-            }
+                try {
+                    Console.Write($@"[SymBLink:TS4:{modId}] Gathering Assets... ");
+                    switch (targetFile.Extension) {
+                        case ".package":
+                        case ".ts4script":
+                            // handle file
+                            assets.Add(targetFile);
 
-            var assets = new List<FileInfo>();
-
-            try {
-                Console.Write($@"[SymBLink:TS4:{modId}] Gathering Assets... ");
-                switch (targetFile.Extension) {
-                    case ".package":
-                    case ".ts4script":
-                        // handle file
-                        assets.Add(targetFile);
-
-                        break;
-                    default:
-                        // handle zip
-                        if (IsFileLocked(targetFile)) {
-                            Console.Write(
-                                $"INVALID: File {targetFile.FullName} is locked! Skipping\n");
                             break;
-                        }
+                        default:
+                            // handle zip
+                            if (IsFileLocked(targetFile)) {
+                                Console.Write(
+                                    $"INVALID: File {targetFile.FullName} is locked! Skipping\n");
+                                break;
+                            }
 
-                        ZipFile.ExtractToDirectory(targetFile.FullName, deflateDir.FullName);
-                        IterateAssets(deflateDir, assets);
+                            ZipFile.ExtractToDirectory(targetFile.FullName, deflateDir.FullName);
+                            IterateAssets(deflateDir, assets);
 
-                        if (assets.Count == 0)
-                            Console.Write("INVALID: No valid assets found! Skipping\n");
+                            if (assets.Count == 0)
+                                Console.Write("INVALID: No valid assets found! Skipping\n");
 
-                        break;
+                            break;
+                    }
+
+                    Console.Write("OK!\n");
+                }
+                catch {
+                    Console.Write("FAIL\n");
+                    throw;
                 }
 
-                Console.Write("OK!\n");
+                try {
+                    Console.Write($@"[SymBLink:TS4:{modId}] Copying files.. ");
+                    foreach (var asset in assets)
+                        MoveHelper.Move(asset, composeDir);
+
+                    // if (!modsDir.Exists)
+                    //     modsDir.Create();
+
+                    MoveHelper.Move(composeDir, modsDir);
+
+                    Console.Write("OK!\n");
+                }
+                catch {
+                    Console.Write("FAIL\n");
+                    throw;
+                }
+
+                Console.WriteLine(
+                    $@"[SymBLink:TS4:{modId}] Successfully extracted mod {modId} to {modsDir.FullName}");
             }
             catch (Exception any) {
-                Console.Write($"FAIL: {any.GetType()} - {any.Message}\n");
+                Console.WriteLine(
+                    $"[SymBLink:TS4:{modId}] Could not extract mod: {any.GetType()} - {any.Message}\nException Information:\n{e}");
+                
+                if (modsDir?.Exists ?? false)
+                    modsDir.Delete(true);
+            }
+            finally {
+                Console.WriteLine($@"[SymBLink:TS4:{modId}] Cleaning up...");
+
+                if (modTmpDir.Exists)
+                    modTmpDir.Delete(true);
             }
 
-            try {
-                Console.Write($@"[SymBLink:TS4:{modId}] Copying files and cleaning up... ");
-                foreach (var asset in assets)
-                    asset.CopyTo(composeDir.FullName);
-
-                deflateDir.Delete(true);
-
-                if (!modsDir.Exists)
-                    modsDir.Create();
-
-                MoveHelper.Move(composeDir, modsDir);
-
-                composeDir.Delete(true);
-
-                Console.Write("OK!\n");
-            }
-            catch (Exception any) {
-                Console.Write($"FAIL: {any.GetType()} - {any.Message}\n");
-            }
-
-            Console.WriteLine(
-                $@"[SymBLink:TS4:{modId}] Successfully extracted mod {modId} to {modsDir.FullName}");
             _app.Activity.LoadLevel = ActivityCompanion.Load.Idle;
         }
 
@@ -189,26 +199,28 @@ namespace SymBLink {
     }
 
     public static class MoveHelper {
-        public enum FSType {
+        public enum FsType {
             Dir,
             File
         }
 
         public static void Move(FileSystemInfo source, FileSystemInfo target) {
-            Debug.WriteLine($"[SymBLink:Move] Moving {source.GetType()} to {target.GetType()}:\n" +
-                            $"\t-\t{source.FullName}\n" +
-                            $"\t-\t{target.FullName}");
+            Console.Write("\n" +
+                          $"[SymBLink:Move] Moving {source.GetType()} to {target.GetType()}:\n" +
+                          $"\t-\t{source.FullName}\n" +
+                          $"\t-\t{target.FullName}\n" +
+                          "...");
 
             var mount = MountRelation(source, target);
 
-            if (Is(FSType.Dir, source)) // source is dir
+            if (Is(FsType.Dir, source)) // source is dir
                 MoveDir(mount, source as DirectoryInfo, target);
             else // source is file
                 MoveFile(mount, source as FileInfo, target);
         }
 
         private static void MoveFile(Mount mount, FileInfo source, FileSystemInfo target) {
-            source.MoveTo(target.FullName);
+            source.MoveTo(DirName(target, source.Name));
         }
 
         private static void MoveDir(Mount mount, DirectoryInfo source, FileSystemInfo target) {
@@ -243,15 +255,15 @@ namespace SymBLink {
                 : new FileInfo(path);
         }
 
-        private static string DirName(FileSystemInfo fsi) {
-            return (fsi as FileInfo)?.DirectoryName ?? fsi.FullName;
+        private static string DirName(FileSystemInfo fsi, string sourceName = null) {
+            return (fsi as FileInfo)?.DirectoryName ?? fsi.FullName + (sourceName == null ? "" : Path.DirectorySeparatorChar + sourceName);
         }
 
-        public static bool Is(FSType type, FileSystemInfo path) {
+        public static bool Is(FsType type, FileSystemInfo path) {
             switch (type) {
-                case FSType.Dir:
+                case FsType.Dir:
                     return path is DirectoryInfo;
-                case FSType.File:
+                case FsType.File:
                     return path is FileInfo;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);

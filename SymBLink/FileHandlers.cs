@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -130,7 +131,7 @@ namespace SymBLink {
                 }
 
                 try {
-                    Console.Write($@"[SymBLink:TS4:{modId}] Copying files.. ");
+                    Console.Write($@"[SymBLink:TS4:{modId}] Copying files... ");
                     foreach (var asset in assets)
                         MoveHelper.Move(asset, composeDir);
 
@@ -205,7 +206,7 @@ namespace SymBLink {
         }
 
         public static void Move(FileSystemInfo source, FileSystemInfo target) {
-            Console.Write("\n" +
+            Debug.Write("\n" +
                           $"[SymBLink:Move] Moving {source.GetType()} to {target.GetType()}:\n" +
                           $"\t-\t{source.FullName}\n" +
                           $"\t-\t{target.FullName}\n" +

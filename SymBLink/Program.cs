@@ -3,8 +3,13 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Newtonsoft.Json;
+using Application = System.Windows.Forms.Application;
+using Color = System.Drawing.Color;
 
 namespace SymBLink {
     public static class Program {
@@ -89,6 +94,16 @@ namespace SymBLink {
 
             MenuItem[] menuItems = {
                 configure,
+                new MenuItem("Why does the Icon look so bad...?", new[] {
+                    new MenuItem {
+                        Text = "Because Windows requires me to replace the white with your TaskBar color.",
+                        Enabled = false
+                    },
+                    new MenuItem {
+                    Text = "This is retarded and absolutely overkill for such an Application.",
+                    Enabled = false
+                    }
+                }), 
                 new MenuItem("Exit", (sender, args) => Application.Exit())
             };
 

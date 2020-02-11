@@ -1,194 +1,153 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
+using System.IO;
+using System.Text;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Forms;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Newtonsoft.Json;
 using Application = System.Windows.Forms.Application;
-using Button = System.Windows.Controls.Button;
-using ContextMenu = System.Windows.Forms.ContextMenu;
-using HorizontalAlignment = System.Windows.HorizontalAlignment;
-using MenuItem = System.Windows.Forms.MenuItem;
-using Orientation = System.Windows.Controls.Orientation;
-using Panel = System.Windows.Controls.Panel;
+using Color = System.Drawing.Color;
 
 namespace SymBLink {
-    internal class App : ApplicationContext {
-        internal static readonly App Instance = new App();
+    public static class Program {
+        public const string AppId = "org.comroid.symblink";
 
-        private readonly IContainer _components;
-        private readonly Window _window;
+        public static readonly DirectoryInfo DataDir;
+        public static readonly DirectoryInfo TmpDir;
 
-        private App() {
-            WhenDebug(() => Console.WriteLine("Debug Mode ON!"));
+        static Program() {
+            Console.WriteLine("[SymBLink] Program PreInitialization");
+            DataDir = new DirectoryInfo(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
+                Path.DirectorySeparatorChar + AppId);
+            TmpDir = new DirectoryInfo(
+                Path.GetTempPath() + Path.DirectorySeparatorChar + AppId);
 
-            //_window.Initialized += null; // todo needs serialization
-            //_window.Loaded += null; // todo move ui initialization here
-
-            _components = new Container();
-            _window = new Window();
-            _window.Visibility = Visibility.Hidden;
-            _window.Width = 720;
-            _window.Height = 300;
-            _window.Closed += (sender, args) => _window.Visibility = Visibility.Hidden;
-
-            #region Generate UI
-
-            // window
-            var grid = new Grid();
-            PopulateSelf(grid);
-
-            // tray
-            var trayMenu = new ContextMenu();
-            PopulateTrayMenu(trayMenu);
-
-            var trayIcon = new NotifyIcon(_components);
-            trayIcon.Icon = new Icon("Resources/tray.ico");
-
-            trayIcon.ContextMenu = trayMenu;
-
-            trayIcon.Text = _window.Name;
-            trayIcon.Visible = true;
-            trayIcon.DoubleClick += ToggleWindow;
-
-            #endregion
-        }
-
-        private void PopulateSelf(Grid grid) {
-            _window.Title = $@"SymBLink v{Application.ProductVersion}";
-
-            #region Members
-
-            var createPreset = new Button();
-            createPreset.Content = "Create Preset";
-            createPreset.Click += (sender, args) => Console.WriteLine("Create");
-
-            var editPreset = new Button();
-            editPreset.Content = "Edit Preset";
-            editPreset.Click += (sender, args) => Console.WriteLine("Edit");
-
-            var deletePreset = new Button();
-            deletePreset.Content = "Delete Preset";
-            deletePreset.Click += (sender, args) => Console.WriteLine("Delete");
-
-            var submitBox = new StackPanel();
-            submitBox.Orientation = Orientation.Vertical;
-            submitBox.HorizontalAlignment = HorizontalAlignment.Stretch;
-            submitBox.VerticalAlignment = VerticalAlignment.Stretch;
-
-            var revertAll = new Button();
-            revertAll.Content = "Revert all Modifications";
-            revertAll.Click += (sender, args) => Console.WriteLine("Revert");
-            revertAll.HorizontalAlignment = HorizontalAlignment.Stretch;
-            revertAll.VerticalAlignment = VerticalAlignment.Stretch;
-
-            var apply = new Button();
-            apply.Content = "Apply current Modifications";
-            apply.Click += (sender, args) => Console.WriteLine("Apply");
-            apply.HorizontalAlignment = HorizontalAlignment.Stretch;
-            apply.VerticalAlignment = VerticalAlignment.Stretch;
-
-            submitBox.Children.Add(revertAll);
-            submitBox.Children.Add(apply);
-
-            UIElement presetBox = GenPresetList();
-
-            #endregion
-
-            #region Grid
-
-            // Todo: Setup Grid
-            // https://docs.microsoft.com/en-us/dotnet/framework/wpf/controls/how-to-create-a-grid-element
-            grid.Width = _window.Width;
-            grid.Height = _window.Height;
-            grid.HorizontalAlignment = HorizontalAlignment.Stretch;
-            grid.VerticalAlignment = VerticalAlignment.Stretch;
-            WhenDebug(() => grid.ShowGridLines = true);
-
-            var col1 = new ColumnDefinition();
-            var col2 = new ColumnDefinition();
-            var col3 = new ColumnDefinition();
-            var col4 = new ColumnDefinition();
-            grid.ColumnDefinitions.Add(col1);
-            grid.ColumnDefinitions.Add(col2);
-            grid.ColumnDefinitions.Add(col3);
-            grid.ColumnDefinitions.Add(col4);
-
-            var row1 = new RowDefinition();
-            var row2 = new RowDefinition();
-            grid.RowDefinitions.Add(row1);
-            grid.RowDefinitions.Add(row2);
-
-            Grid.SetColumn(createPreset, 0);
-            Grid.SetColumn(editPreset, 1);
-            Grid.SetColumn(deletePreset, 2);
-            Grid.SetColumn(submitBox, 3);
-            
-            Grid.SetRow(presetBox, 1);
-            Grid.SetColumnSpan(presetBox, 4);
-
-            foreach (UIElement child in new[]{createPreset, editPreset, deletePreset, submitBox, presetBox})
-                grid.Children.Add(child);
-
-            #endregion
-
-            _window.Content = grid;
-        }
-
-        private Panel GenPresetList() {
-            return new StackPanel(); //todo
-        }
-
-        [Conditional("DEBUG")]
-        public static void WhenDebug(Action perform) {
-            perform.Invoke();
+            Application.ApplicationExit += (sender, args) => {
+                App.Instance.Dispose();
+                TmpDir.Delete(true);
+            };
+            Console.WriteLine("[SymBLink] Program PreInitialization complete");
         }
 
         [STAThread]
         public static void Main() {
-            Console.WriteLine("STARTING...");
+            Console.WriteLine("[SymBLink] Starting up...");
+            App.Instance.ReInitialize(true);
 
-            var ts4Mover = new Ts4Mover(
-                "D:\\Downloads\\sems4cc",
-                "D:\\Dokumente\\Electronic Arts\\The Sims 4\\Mods"
-                );
+            Console.WriteLine("[SymBLink] Running Application...");
+            Application.Run(App.Instance);
+        }
+    }
 
-            Application.Run(Instance);
-            Instance._components?.Dispose();
+    public class App : ApplicationContext {
+        public static readonly App Instance;
+        public static readonly Icon VanityIcon;
+
+        static App() {
+            Console.WriteLine("[SymBLink] App PreInitialization");
+            Instance = new App();
+            VanityIcon = new Icon("Resources/icon-green.ico");
+            Console.WriteLine("[SymBLink] App PreInitialization complete");
+        }
+
+        private readonly Container _components = new Container();
+        public readonly ActivityCompanion Activity;
+
+        public readonly Settings Settings;
+        public readonly NotifyIcon TrayIcon;
+        public readonly ContextMenu TrayMenu;
+
+        private Ts4FileService _fds;
+        private bool _loaded;
+
+        private App() {
+            Console.WriteLine("[SymBLink] Initializing App...");
+            if (!Program.DataDir.Exists)
+                Program.DataDir.Create();
+            if (!Settings.File.Exists)
+                File.WriteAllText(Settings.File.FullName, "{}", Encoding.UTF8);
+
+            Settings = JsonConvert.DeserializeObject<Settings>(
+                File.ReadAllText(Settings.File.FullName, Encoding.UTF8));
+            Activity = new ActivityCompanion();
+            TrayIcon = new NotifyIcon(_components);
+            TrayMenu = new ContextMenu();
+
+            _components.Add(TrayIcon, "trayIcon");
+            _components.Add(TrayMenu, "trayMenu");
+            Console.WriteLine("[SymBLink] Initializing App complete!");
+        }
+
+        private void Load() {
+            Console.WriteLine("[SymBLink] Loading UI...");
             
-            Console.WriteLine("GOODBYE");
-        }
+            TrayIcon.Text = ToString();
+            TrayIcon.Visible = true;
 
-        private void PopulateTrayMenu(ContextMenu contextMenu) {
-            var configure = new MenuItem();
-            var exit = new MenuItem();
-
-            contextMenu.MenuItems.AddRange(new[] {configure, exit});
-
-            configure.Index = 0;
-            configure.Text = "&Configure";
+            var configure = new MenuItem("Configure...", (sender, args) => Settings.Configurator());
             configure.DefaultItem = true;
-            configure.Click += ToggleWindow;
+            TrayIcon.DoubleClick += (sender, args) => configure.PerformClick();
 
-            exit.Index = contextMenu.MenuItems.Count - 1;
-            exit.Text = "E&xit";
-            exit.Click += (sender, args) => Application.Exit();
+            MenuItem[] menuItems = {
+                configure,
+                new MenuItem("Why does the Icon look so bad...?", new[] {
+                    new MenuItem {
+                        Text = "Because Windows requires me to replace the white with your TaskBar color.",
+                        Enabled = false
+                    },
+                    new MenuItem {
+                    Text = "This is retarded and absolutely overkill for such an Application.",
+                    Enabled = false
+                    }
+                }), 
+                new MenuItem("Exit", (sender, args) => Application.Exit())
+            };
+
+            for (var i = 0; i < menuItems.Length; i++) {
+                var it = menuItems[i];
+
+                it.Visible = true;
+                it.Index = i;
+            }
+
+            TrayMenu.MenuItems.AddRange(menuItems);
+
+            TrayIcon.ContextMenu = TrayMenu;
+
+            _loaded = true;
+            
+            Console.WriteLine("[SymBLink] UI Initialized!");
         }
 
-        private void ToggleWindow(object sender, EventArgs e) {
-            switch (_window.Visibility) {
-                case Visibility.Visible:
-                    _window.Visibility = Visibility.Hidden;
-                    break;
-                case Visibility.Hidden:
-                case Visibility.Collapsed:
-                    _window.Visibility = Visibility.Visible;
-                    _window.Topmost = true;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+        public void ReInitialize(bool reload) {
+            Console.WriteLine($"[SymBLink] Reinitializing. Reloading? {!_loaded || reload}");
+            
+            Activity.LoadLevel = ActivityCompanion.Load.High;
+
+            if (!_loaded || reload) Load();
+
+            _fds?.Dispose();
+            _fds = new Ts4FileService(this);
+
+            Activity.LoadLevel = ActivityCompanion.Load.Idle;
+            
+            Console.WriteLine("[SymBLink] Reinitialization Complete.");
+        }
+
+        public override string ToString() {
+            return $@"SymBLink v{Application.ProductVersion}";
+        }
+
+        protected override void Dispose(bool disposing) {
+            Console.WriteLine("[SymBLink] App is being disposed!");
+            
+            Settings.Dispose();
+
+            _components.Dispose();
         }
     }
 }

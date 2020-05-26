@@ -30,11 +30,18 @@ namespace SymBLink {
 
         [STAThread]
         public static void Main() {
-            Console.WriteLine("[SymBLink] Starting up...");
-            App.Instance.ReInitialize(true);
+            try
+            {
+                Console.WriteLine("[SymBLink] Starting up...");
+                App.Instance.ReInitialize(true);
 
-            Console.WriteLine("[SymBLink] Running Application...");
-            Application.Run(App.Instance);
+                Console.WriteLine("[SymBLink] Running Application...");
+                Application.Run(App.Instance);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
         }
     }
 
@@ -91,12 +98,11 @@ namespace SymBLink {
                 configure,
                 new MenuItem("Why does the Icon look so bad...?", new[] {
                     new MenuItem {
-                        Text =
-                            "Because Windows requires me to replace the white with your TaskBar color.",
+                        Text = "Because Windows requires me to replace the white with your TaskBar color.",
                         Enabled = false
                     },
                     new MenuItem {
-                        Text = "This is retarded and absolutely overkill for such an Application.",
+                        Text = "This absolutely overkill for such an Application.",
                         Enabled = false
                     }
                 }),

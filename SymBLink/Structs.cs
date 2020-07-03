@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Media.Imaging;
+using Microsoft.WindowsAPICodePack.Shell;
 using Newtonsoft.Json;
 using Button = System.Windows.Controls.Button;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
@@ -48,12 +49,14 @@ namespace SymBLink {
 
         private ConfiguratorForm _configurator;
 
-        [JsonProperty] public int Version { get; set; } = 1;
+        [JsonProperty]
+        public int Version { get; set; } = 1;
 
         [JsonProperty]
         public string DownloadDir { get; set; } = TryFind(AutoFindProperty.DownloadDir);
 
-        [JsonProperty] public string SimsDir { get; set; } = TryFind(AutoFindProperty.SimsDir);
+        [JsonProperty] 
+        public string SimsDir { get; set; } = TryFind(AutoFindProperty.SimsDir);
 
         public bool Valid
         {
@@ -108,12 +111,7 @@ namespace SymBLink {
         private class AutoFindProperty {
             public static readonly GatherableProperty<string> DownloadDir =
                 new GatherableProperty<string>(() => {
-                    var suggestedPath =
-                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                        + Path.DirectorySeparatorChar + ".."
-                        + Path.DirectorySeparatorChar + "Downloads";
-
-                    return System.IO.File.Exists(suggestedPath) ? suggestedPath : null;
+                    return KnownFolders.Downloads.Path;
                 });
 
             public static readonly GatherableProperty<string> SimsDir =

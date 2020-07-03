@@ -26,10 +26,8 @@ namespace SymBLink {
             Console.WriteLine("[SymBLink:TS4] Initializing Ts4FileService...");
             _app = app;
 
-            if (!_app.Settings.Valid) {
-                Console.WriteLine("[SymBLink:TS4] Settings are invalid!");
-                throw new InvalidDataException("Invalid Settings!");
-            }
+            if (!_app.Settings.Valid)
+                Console.WriteLine("[SymBLink:TS4] Settings are invalid! Please fix them using the Configurator.");
 
             _watcher = new FileSystemWatcher(_app.Settings.DownloadDir) {
                 IncludeSubdirectories = true,

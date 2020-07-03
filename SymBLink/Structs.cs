@@ -55,11 +55,21 @@ namespace SymBLink {
 
         [JsonProperty] public string SimsDir { get; set; } = TryFind(AutoFindProperty.SimsDir);
 
-        public bool Valid =>
-            DownloadDir != null
-            && Directory.Exists(DownloadDir)
-            && SimsDir != null
-            && Directory.Exists(SimsDir);
+        public bool Valid
+        {
+            get
+            {
+                var download = DownloadDir != null && Directory.Exists(DownloadDir);
+                var sims = SimsDir != null && Directory.Exists(SimsDir);
+                
+                if (!download)
+                    Console.WriteLine("[SymBLink:Conf] Download directory invalid: " + DownloadDir);
+                if (!sims)
+                    Console.WriteLine("[SymBLink:Conf] TS4 directory invalid: " + SimsDir);
+                
+                return download && sims;
+            }
+        }
 
         public void Dispose() {
             var data = JsonConvert.SerializeObject(this, Formatting.Indented);

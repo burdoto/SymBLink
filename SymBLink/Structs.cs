@@ -66,9 +66,9 @@ namespace SymBLink {
                 var sims = SimsDir != null && Directory.Exists(SimsDir);
                 
                 if (!download)
-                    Console.WriteLine("[SymBLink:Conf] Download directory invalid: " + DownloadDir);
+                    Console.Error.WriteLine("[SymBLink:Conf] Download directory invalid: " + DownloadDir);
                 if (!sims)
-                    Console.WriteLine("[SymBLink:Conf] TS4 directory invalid: " + SimsDir);
+                    Console.Error.WriteLine("[SymBLink:Conf] TS4 directory invalid: " + SimsDir);
                 
                 return download && sims;
             }

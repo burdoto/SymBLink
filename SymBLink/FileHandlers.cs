@@ -27,7 +27,7 @@ namespace SymBLink {
             _app = app;
 
             if (!_app.Settings.Valid)
-                Console.WriteLine("[SymBLink:TS4] Settings are invalid! Please fix them using the Configurator.");
+                Console.Error.WriteLine("[SymBLink:TS4] Settings are invalid! Please fix them using the Configurator.");
 
             _watcher = new FileSystemWatcher(_app.Settings.DownloadDir) {
                 IncludeSubdirectories = true,
